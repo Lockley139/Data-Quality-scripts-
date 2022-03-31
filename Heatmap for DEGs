@@ -1,0 +1,121 @@
+###create barplot in ggplot2
+library(ggplot2)
+DEG <- read.csv("DEGs.csv")
+DEG$Treatment <- factor(DEG$Treatment,levels = c("LIACvLIA", 
+                                                 "LIAvLI", 
+                                                 "LIACvLI"))
+
+ggplot(data = DEG, aes(x = Cell.Line, y = DEGs)) +
+  geom_bar(aes(fill = Treatment), 
+           width = 0.5,
+           position = position_dodge(width = 0.6),   
+           stat = "identity") +
+  labs(title = "Differentially Expressed Genes Upregulated",
+       subtitle = "across Cell lines and Treatments",
+       x = "Cell lines",
+       y = "Differentially Expressed Genes") +
+  theme_bw() +
+  scale_fill_manual("Treatment", 
+                    values = c("LIACvLIA" = "midnightblue", 
+                               "LIAvLI" = "khaki2", 
+                               "LIACvLI" = "darkolivegreen4")) +
+  theme(axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text.x = element_text(colour = "black", size = 12),
+        axis.text.y = element_text(colour = "black", size = 12),
+        plot.title = element_text(size = 20, hjust = 0.5),
+        plot.subtitle = element_text(size = 20, hjust = 0.5),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        panel.background = element_rect(colour = "black", size = 1))
+
+######################################################################################
+
+# creating simple data frame from two vectors
+Inverse_Simpsons <- c(2.34, 1.73, 1.22)
+Patient_Group <- c("PPROM", "TPTL", "TL")
+Bac_div$Patient_Group <- factor(Bac_div$Patient_Group,levels = c("TL", "TPTL", "PPROM"))
+Bac_div <- data.frame(Inverse_Simpsons, Patient_Group)
+
+ggplot(data = Bac_div, aes(x = reorder(Patient_Group, -Inverse_Simpsons), 
+                           y = Inverse_Simpsons, fill = Patient_Group)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  scale_fill_manual("Legend", 
+                    breaks = Patient_Group,
+                    values = c("PPROM" = "blue", "TPTL" = "green", "TL" = "orange")) +
+  labs(title = "Bacterial Diversity across Patient Groups",
+       x = "Patient Group",
+       y = "Inverse Simpsons") +
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text.x = element_text(colour = "black", size = 10),
+        axis.text.y = element_text(colour = "black", size = 10),
+        plot.title = element_text(size = 20, hjust = 0.5),
+        plot.subtitle = element_text(size = 20, hjust = 0.5),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        panel.background = element_rect(colour = "black", size = 1))
+
+######################################################################################
+install.packages("gridExtra")
+install.packages("cowplot")
+library(gridExtra)
+library(cowplot)
+
+LIAC_UP_MSN <- read.csv("A_CL_LIACVLI_U_MSN.csv")
+LIA_UP_MSN <- read.csv("A_CL_LIAvLI_U_MSN.csv")
+LIAC_UP_LGE <- read.csv("A_CL_LIACvLI_U_LGE.csv")
+LIA_UP_LGE <-read.csv("A_CL_LIAvLI_U_LGE.csv")
+
+lia_msn_plot <- ggplot(data = LIA_UP_MSN, aes(x = Gene, y = log2FoldChange)) +
+  geom_bar(aes(fill = Cell.line),
+           width = 0.5,
+           position = position_dodge(width = 0.6), 
+           stat = "identity") +
+  labs(x = "Gene",
+       y = "Log2 Fold Change") +
+  theme_bw() +
+  scale_fill_manual("Cell line", 
+                    values = c("18n6" = "gold2", 
+                               "33n1" = "slateblue", 
+                               "Kolf2" = "firebrick3")) +
+  theme(axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(colour = "black", size = 10),
+        axis.text.y = element_text(colour = "black", size = 10),
+        plot.title = element_text(colour = "black", size = 12, hjust = 0.5),
+        plot.subtitle = element_text(size = 10, hjust = 0.5),
+        legend.background = element_rect(colour = "white"),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        legend.position = "none",
+        panel.background = element_rect(colour = "black", size = 1))
+  
+plot(lia_lge_plot)
+
+# Creating multipanel figure with gridExtra
+grid.arrange(liac_msn_plot, 
+             lia_msn_plot, 
+             liac_lge_plot, 
+             lia_lge_plot,
+             nrow = 2)
+
+# Creating multipanel figure with cowplot
+ggarrange(liac_msn_plot, 
+          lia_msn_plot, 
+          liac_lge_plot,
+          lia_lge_plot,
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2,
+          common.legend = TRUE,
+          legend = "bottom")
+
+
+
+          
+
+
+
