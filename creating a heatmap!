@@ -1,0 +1,168 @@
+###############################################################################
+################################################################################
+
+#Set Working directory as DS_Case_Study_Data
+
+setwd("Home/R_DS_Data")
+
+
+#Load necessary library to read RCCs
+
+library(readr)
+library(nanostringr)
+
+
+DS_case_Study_Data <- read_rcc(path = "DS_Case_Study_Data")
+
+#creates a list of files with \\.RCC ending. 
+
+rcc_files <- list.files(path = "DS_Case_Study_Data", pattern = "\\.RCC$", 
+                        full.names = TRUE, ignore.case = TRUE)
+
+
+
+################################################################################
+################################################################################
+
+
+library(dplyr)
+
+#creates a file called "raw" from RCC files extracted, and uses dplyr to join 
+#"Code.class" "name" and "Accession"
+  
+  rlang::set_names(tools::file_path_sans_ext(basename(.)))
+
+raw <- rcc_files %>%
+  purrr::map(parse_counts) %>%
+  purrr::imap(~ `names<-`(.x, c(names(.x)[-4], .y))) %>%
+  purrr::reduce(dplyr::inner_join, 
+                by = c("Code.Class", "Name", "Accession")) %>%
+                dplyr::mutate(!!"Name" := ifelse(.data$Name == "CD3E", "CD3e", 
+                                                 .data$Name)) %>%
+                as.data.frame()
+
+
+################################################################################
+################################################################################
+
+#now that raw  are made via parse_counts and parse attributes, 
+#we have all of the genes in rows, corresponding to each sample ID.
+
+#Create a matrix for the dataframe "raw"
+raw.matrix <- data.matrix(raw)
+
+#Here, i am extracting the positive and negative controls from rows 131 to 145, 
+#as well as columns 4 to 13, and creating a new matrix called "Pos_neg_genes."
+
+List_of_controls <- matrix(raw.matrix[c(131:136),c(4:13)], nrow = 6, ncol = 10)
+
+List_of_controls_2 <- matrix(raw.matrix[c(137:144),c(4:13)], nrow = 8, ncol = 10)
+
+#bind column to make a list of both 
+all_List_of_controls<- rbind(List_of_controls, List_of_controls_2)
+
+
+
+#take a quick look at a simple heatmap to make sure that the matrix has the 
+#necessary datapoints. 
+heatmap(all_List_of_controls, 
+        main = "Positive & Negative vs Sample", 
+        margins = c(10,12))
+                                
+# i now need to transform the matrix so that column read as the positive and 
+#negative controls, and samples are rows, using "t". 
+t_all_list_of_controls <- t(all_List_of_controls)
+
+#to be able to transform the columns as a vector of numeric value, 
+#and assign them names using "colnames", 
+#i need a data frame, which makes the process easier. 
+#I have also extracted the column names before hand to be assign to the columns. 
+
+new_column <- matrix(raw[c(131:144),c(2)])
+
+Data_new_column <- as.data.frame(new_column)
+
+#check the class
+class(Data_new_column)
+
+#assigned column names using the extracted names Pos and Neg. 
+colnames(t_all_list1_of_controls) <- Data_new_column$V1
+
+#now i have the Positive and negative genes in columns, named from the original file, ill and the samples names in rows. It will also be useful to add the patient number 1 to 5. 
+row.names(t_all_list_of_controls) <- c("Baseline1","Post treatment1", "Baseline2", "Post treatment2", "Baseline3", "Post treatment3", "Baseline4", "Post treatment4", "Baseline5", "Post treatment5")
+
+colnames(t_all_list_of_controls) <- c("Positive C  (8fM)", 
+                                   "Positive A  (128fM)", 
+                                   "Positive F  (0.125fM)", 
+                                   "Positive D  (2fM)", 
+                                   "Positive B  (32fM)", 
+                                   "Positive E  (0.5fM)", 
+                                   "Negative C  (0fM)", 
+                                   "Negative D  (0fM)", 
+                                   "Negative E  (0fM)",
+                                   "Negative A  (0fM)",
+                                   "Negative H  (0fM)",
+                                   "Negative G  (0fM)", 
+                                   "Negative F  (0fM)", 
+                                   "Negative B  (0fM)")
+
+#Six synthetic DNA control targets are included with every nCounter Gene 
+#Expresion assay. Their concentrations range linearly from 128fM to 0.125 fM, 
+#and are referred to as POS_A to Pos_F, respectively. 
+#these positive controls are typically used to measure the efficiency of the 
+#hybridization reaction, and their step-wise concentrations also make them 
+#useful in observing the linearity performance of the assay. 
+#An R^2 value is calculated from the regression between the known concentration 
+#of each of the positive controls and the resulting counts from them. 
+#To determine whether POS_E is detectable (0.5), it can be compared to the 
+#counts for the negative probes. Every nCounter Gene Expression assay is 
+#manufactured with eight negative control probes that should not hybridize to 
+#any targets within the samples.
+#counts from these will approximate general non-specific binding of probes 
+#within the samples being run. 
+#the counts of POS_E should be higher than to times the standard deviation 
+#above the mean of the negative control. 
+
+#Every probe in an nCounter will exhibit some variability in non-specific counting. 
+#By observing this variability among the negative control probe targets, we can
+#predict the level of variability in baseline non-specific counts that we expect
+#to see for the endogenous and housekeeping targets. 
+
+################################################################################
+
+
+#load nice packages for prettiness. 
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(colorRamp2)
+library(circlize)
+
+#using the colorRamp2 package to set color scheme 
+col_fun = colorRamp2(c(-125, 0, 125), c("green", "white", "red"))
+col_fun(seq(-10, 10))
+
+#Make sure class is matrix 
+as.matrix(t_all_list_of_controls)
+
+Heatmap(t_all_list_of_controls, name = "Expression", 
+        row_order = order(as.numeric(gsub("row", "",rownames(t_all_list_of_controls)))),
+        column_order = sort(colnames(t_all_list_of_controls)),
+        col = col_fun, 
+        border_gp = gpar(col = "black", lty = 1), 
+        rect_gp = gpar(col = "white", lwd = 2),
+        column_title = "Positive & negative probes vs Sample",
+        column_title_gp = gpar(fontsize = 15, fontface = "bold"),
+        column_title_side = "top",
+        row_title = "Sample",
+        row_title_side  = "right",
+        row_split = data.frame(rep(c("A", "B"), 5)))
+
+
+#As seen by the figure, In patient sample 3, post treatment, Negative control 
+#sample E is an outlier as opposed to baseline treatment, 
+#as well as within patient sample 2 at baseline as opposed to post treatment. 
+#This should be considered when plotting data. 
+
+
+
+  
