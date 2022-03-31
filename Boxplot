@@ -1,0 +1,302 @@
+################################################################################
+# Load packages needed
+library(dbplyr); library(magrittr); library(tidyverse); library(reshape2)
+
+################################################################################
+### Formatting and manipulating data
+
+# Drop columns not wanted
+raw_genes <- raw %>% 
+  dplyr::select(-c(Code.Class, Accession))
+  
+# Filter out first gene of interest and convert to long format
+raw_genes_MCL1 <- raw_genes %>% 
+  dplyr::filter(Name == "MCL1") %>% 
+  melt(id.vars = c("Name"))
+
+# Filter out second gene of interest and convert to long format
+raw_genes_CXCL1 <- raw_genes %>% 
+  dplyr::filter(Name == "CXCL1") %>% 
+  melt(id.vars = c("Name"))
+
+# Rename values of column called variable  
+levels(raw_genes_MCL1$variable) <- list("baseline" = "1", 
+                                         "post-treatment" = "2", 
+                                         "baseline" = "3", 
+                                         "post-treatment" = "4",
+                                         "baseline" = "5",
+                                         "post-treatment" = "6",
+                                         "baseline" = "7",
+                                         "post-treatment" = "8",
+                                         "baseline" = "9",
+                                         "post-treatment" = "10")
+
+levels(raw_genes_CXCL1$variable) <- list("baseline" = "1", 
+                                        "post-treatment" = "2", 
+                                        "baseline" = "3", 
+                                        "post-treatment" = "4",
+                                        "baseline" = "5",
+                                        "post-treatment" = "6",
+                                        "baseline" = "7",
+                                        "post-treatment" = "8",
+                                        "baseline" = "9",
+                                        "post-treatment" = "10")
+
+################################################################################
+### Plotting figures
+
+# Box plot for MCL1
+
+ggplot(data = raw_genes_MCL1, aes(x = Name, y = value)) +
+  geom_boxplot(aes(fill = variable), outlier.colour = "red", outlier.shape = 1, outlier.alpha = 1) +
+  geom_jitter(width = 0.1) +
+  
+  labs(title = "MCL1",
+       x = "Gene Name",
+       y = "Expression") +
+  theme_bw() +
+  scale_fill_manual("Time Point", 
+                    values = c("baseline" = "red", 
+                               "post-treatment" = "lightblue")) +
+  theme(axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text.x = element_text(colour = "black", size = 12),
+        axis.text.y = element_text(colour = "black", size = 12),
+        plot.title = element_text(size = 20, hjust = 0.5),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        panel.background = element_rect(colour = "black", size = 1))
+
+?geom_boxplot
+# Box plot for CXCL1
+
+ggplot(data = raw_genes_CXCL1, aes(x = Name, y = value)) +
+  geom_boxplot(aes(fill = variable), outlier.colour = "red", outlier.shape = 1,) +
+  geom_jitter(width = 0.1) +
+  labs(title = "CXCL1",
+       x = "Gene Name",
+       y = "Expression") +
+  theme_bw() +
+  scale_fill_manual("Time Point", 
+                    values = c("baseline" = "red", 
+                               "post-treatment" = "lightblue")) +
+  theme(axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        axis.text.x = element_text(colour = "black", size = 12),
+        axis.text.y = element_text(colour = "black", size = 12),
+        plot.title = element_text(size = 20, hjust = 0.5),
+        legend.background = element_rect(colour = "black"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        panel.background = element_rect(colour = "black", size = 1))
+
+################################################################################
+
+#Considering the quality control assessment for patient's sample 2 at baseline 
+#time point, as well as patient sample 3 at post treatment time point (and to a 
+#lesser extent for patient sample 5 at baseline) showing 
+#positive expression (binding) at negative E.
+#The limit of detection is determined by measuring the ability to detect POS_E, 
+#the 0.5 fM positive control probe, which corresponds to about 10,000 copies of 
+#this target within each sample. 
+
+#To determine whether POS_E is detectable, it can be compared to the counts for
+#the negative control probes. The nCounter Gene expression assay is manufactured
+#with eight negative control probes that should not hybridize to any targets
+#within the sample. 
+
+################################################################################
+#Therefore, counts from these will approximate general non-specific binding of 
+#probes within the sample being run. 
+
+################################################################################
+#reasons for this non-specific binding, according to the Gene Expression Data 
+#Analysis Guidelines correspond to:
+#Cross hybridization with targets in the sample. 
+
+################################################################################
+
+#This may therefore be a reason for the detection of outliers in task 3.2 from 
+#subsequent patients
+
+
+### Calculating different summary statistics
+
+# Overall summary 
+summary(raw_genes_CXCL1)
+summary(raw_genes_MCL1)
+summary(raw_genes_CXCL1_w_outlier)
+summary(raw_genes_MCL1_w_outlier)
+
+
+################################################################################
+### Playing around with the box plot 
+
+################################################################################
+#removing outliers from boxplot. 
+#i have chosen to  remove outliers from patient sample 3 
+
+raw_genes_CXCL1_w_outlier <- raw_genes_CXCL1[c(-6), ]
+raw_genes_MCL1_w_outlier <- raw_genes_MCL1[c(-6), ]
+
+#Feed back into boxplot.
+
+################################################################################
+#compute summary statistics 
+
+#apply summary to all timepoints
+summary(raw_genes_CXCL1_w_outlier$value)
+
+#apply summary to just the individual groups. 
+
+#CXCL1
+tapply(raw_genes_CXCL1_w_outlier$value, raw_genes_CXCL1_w_outlier$variable, summary)
+
+#MCL1
+tapply(raw_genes_MCL1_w_outlier$value, raw_genes_MCL1_w_outlier$variable, summary)
+
+
+#can also compute via dplyr as below
+library(dplyr)
+raw_genes_CXCL1_w_outlier %>%
+  group_by(variable) %>%
+  summarize(min = min(value),
+            q1 = quantile(value, 0.25),
+            median = median(value),
+            mean = mean(value),
+            q3 = quantile(value, 0.75),
+            max = max(value))
+            
+#using purrr
+library(purrr)
+
+#CXCL1
+df_CXCl1 <- data.frame(raw_genes_CXCL1_w_outlier %>%
+  split(.$variable) %>%
+  map(summary))
+write.csv(df_CXCl1, "Summary data for CXCl1.csv")
+
+#MCL1
+df_MCL1 <- data.frame(raw_genes_MCL1_w_outlier %>%
+  split(.$variable) %>%
+  map(summary))
+write.csv(df_MCL1, "Summary data for MCL1.csv")
+
+################################################################################ 
+
+theme_USGS_box <- function(base_family = "serif", ...){
+  theme_bw(base_family = base_family, ...) +
+    theme(
+      panel.grid = element_blank(),
+      plot.title = element_text(size = 10),
+      axis.ticks.length = unit(-0.05, "in"),
+      axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")),
+      axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")),
+      axis.ticks.x = element_blank(),
+      aspect.ratio = 5,
+      legend.background = element_rect(color = "black", fill = "white")
+    )
+}
+
+n_fun <- function(raw_genes_CXCL1_w_outlier){
+  return(data.frame(y = 0.95*70,
+                    label = length(raw_genes_CXCL1_w_outlier)))
+}
+
+update_geom_defaults("text",
+                     list(size = 4,
+                          family = "serif"))
+
+ggplot(data = raw_genes_CXCL1_w_outlier,
+       aes(x = variable, y = value)) +
+  stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot(aes(fill = variable)) +
+  stat_summary(fun.data = n_fun, geom = "text", hjust = 1) +
+  expand_limits(y = 500) +
+  theme_USGS_box() +
+  stat_summary(fun=max,geom="point", shape=1, size=5, color="red") +
+  stat_summary(fun=min,geom="point", shape=1, size=5, color="blue") +
+  geom_jitter(width = 0) +
+  expand_limits(y=0) +
+  labs(title = "CXCL1",
+       x = "Time point",
+       y = "Expression") +
+  theme_bw() +
+  scale_fill_manual("Time Point", 
+                    values = c("baseline" = "red", 
+                               "post-treatment" = "lightblue"))
+
+###############################################################################
+
+theme_USGS_box <- function(base_family = "serif", ...){
+  theme_bw(base_family = base_family, ...) +
+    theme(
+      panel.grid = element_blank(),
+      plot.title = element_text(size = 10),
+      axis.ticks.length = unit(-0.05, "in"),
+      axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")),
+      axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")),
+      axis.ticks.x = element_blank(),
+      aspect.ratio = 2,
+      legend.background = element_rect(color = "black", fill = "white")
+    )
+}
+
+n_fun <- function(raw_genes_MCL1_w_outlier){
+  return(data.frame(y = 0.95*70,
+                    label = length(raw_genes_CXCL1_w_outlier)))
+}
+
+update_geom_defaults("text",
+                     list(size = 3,
+                          family = "serif"))
+ggplot(data = raw_genes_MCL1_w_outlier,
+       aes(x = variable, y = value)) +
+  stat_boxplot(geom ='errorbar', width = 0.6) +
+  geom_boxplot(aes(fill = variable)) +
+  stat_summary(fun.data = n_fun, geom = "text", hjust = 0.5) +
+  expand_limits(y = 0) +
+  theme_USGS_box() +
+  stat_summary(fun=max,geom="point", shape=1, size=5, color="red") +
+  stat_summary(fun=min,geom="point", shape=1, size=5, color="blue") +
+  geom_jitter(width = 0.1) +
+  expand_limits(y=25) +
+  labs(title = "MCL1",
+       x = "Time point",
+       y = "Expression") +
+  theme_bw() +
+  scale_fill_manual("Time Point", 
+                    values = c("baseline" = "red", 
+                               "post-treatment" = "lightblue"))
+
+
+################################################################################
+
+#patch together the graphs
+#i decided to keep the y axis scales the same, as it is easier to look at. 
+#install.packages("patchwork")
+library(patchwork)
+
+(CXCL1|MCL1)
+
+################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
